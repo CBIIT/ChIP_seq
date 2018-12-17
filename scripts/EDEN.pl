@@ -15,7 +15,7 @@ my $original_column = "";
 my $output_prefix;
 my $show_exp = 0;
 my $do_stitch = 0;
-my $fpkm_cutoff = 1;
+my $TPM_cutoff = 1;
 my $lfc_cutoff = 1;
 my $pvalue_cutoff;
 my $qvalue_cutoff = 0.05;
@@ -41,7 +41,7 @@ required options:
 optional options:  
   -m  <integer> mth column in matrix file (start with 0. default: $matrix_col)  
   -d  <string>  TAD file
-  -f  <float>   FPKM/TPM cutoff (default: $fpkm_cutoff)
+  -f  <float>   TPM cutoff (default: $TPM_cutoff)
   -l  <float>   Log fold change cutoff for differentially expressed genes(absolute value, default: $lfc_cutoff)
   -p  <float>   p-value cutoff for differentially expressed genes
   -q  <float>   q-value cutoff for differentially expressed genes (default: $qvalue_cutoff. Ignored if -p specified)
@@ -66,7 +66,7 @@ GetOptions (
   'o=s' => \$output_dir,
   'x=s' => \$output_prefix,
   'd=s' => \$tad_file,
-  'f=f' => \$fpkm_cutoff,
+  'f=f' => \$TPM_cutoff,
   'l=f' => \$lfc_cutoff,
   'p=f' => \$pvalue_cutoff,
   'q=f' => \$qvalue_cutoff,
@@ -79,7 +79,7 @@ GetOptions (
 );
 
 if (!$exp_type || ($exp_type ne 'EXP' && $exp_type ne 'TPM' && $exp_type ne 'DIFF' && $exp_type ne 'MATRIX')) {
-    die "The t option must be either 'EXP' OR 'DIFF' or 'MATRIX'\n$usage";
+    die "The t option must be either 'EXP' OR 'DIFF' or 'TPM' OR 'MATRIX'\n$usage";
 }
 unless ($exp_file && $input_file) {
     die "Please input expression file and BED file\n$usage";
@@ -134,21 +134,21 @@ sub runEDEN {
 	my $is_stitched = defined($super_loci_cutoff);	
 	
 	@beds = readBED($input_file);
-    my @fpkm_cutoffs = ();
-    push(@fpkm_cutoffs, 0);
-    push(@fpkm_cutoffs, $fpkm_cutoff);
-	foreach my $f (@fpkm_cutoffs) {
-	    $fpkm_cutoff = $f;
-	    my $multi_gene_file = $output_dir.$output_prefix."_fpkm$fpkm_cutoff"."_multi-genes.txt";
-		my $nearest_gene_file = $output_dir.$output_prefix."_fpkm$fpkm_cutoff"."_nearest-genes.txt";
-		my $max_gene_file = $output_dir.$output_prefix."_fpkm$fpkm_cutoff"."_max-genes.txt";
+    my @TPM_cutoffs = ();
+    push(@TPM_cutoffs, 0);
+    push(@TPM_cutoffs, $TPM_cutoff);
+	foreach my $f (@TPM_cutoffs) {
+	    $TPM_cutoff = $f;
+	    my $multi_gene_file = $output_dir.$output_prefix."_TPM$TPM_cutoff"."_multi-genes.txt";
+		my $nearest_gene_file = $output_dir.$output_prefix."_TPM$TPM_cutoff"."_nearest-genes.txt";
+		my $max_gene_file = $output_dir.$output_prefix."_TPM$TPM_cutoff"."_max-genes.txt";
 		%exp = &readExpression($exp_file, $exp_type);
         &findNearestGene($multi_gene_file, $original_column_header, @beds);
 	    &findNearestMaxGeneWithDistance($nearest_gene_file, $max_gene_file, 0, $original_column_header, @beds);
 	    if ($is_stitched) {
 	        my $super_loci_cutoff_str = ($super_loci_cutoff/1000)."k";
-	        my $super_loci_max_file = $output_dir.$output_prefix."_fpkm$fpkm_cutoff"."_$super_loci_cutoff_str.superloci.max.bed";
-	        my $super_loci_nearest_file = $output_dir.$output_prefix."_fpkm$fpkm_cutoff"."_$super_loci_cutoff_str.superloci.nearest.bed";
+	        my $super_loci_max_file = $output_dir.$output_prefix."_TPM$TPM_cutoff"."_$super_loci_cutoff_str.superloci.max.bed";
+	        my $super_loci_nearest_file = $output_dir.$output_prefix."_TPM$TPM_cutoff"."_$super_loci_cutoff_str.superloci.nearest.bed";
 	        my @super_loci_list = &stitchSuperLoci(@beds);
 		    &findNearestMaxGeneWithDistance($super_loci_nearest_file, $super_loci_max_file, 1, @super_loci_list);
 		}
@@ -160,7 +160,7 @@ sub findNearestGene {
 	open(OUT_MULTI_GENE, ">$multi_gene_file") or die "Cannot open file $multi_gene_file";	
 	my $header_str = "Chromosome\tStart\tEnd\t$original_column_header"."Up_gene\tUp_gene(dist)\tDn_gene\tDn_gene(dist)\tOverlap_gene\n";
 	if ($show_exp) {
-	    $header_str = "Chromosome\tStart\tEnd\t$original_column_header"."Up_gene\tUp_gene(dist)\tUp_gene(FPKM)\tDn_gene\tDn_gene(dist)\tDn_gene(FPKM)\tOverlap_gene\tOverlap_gene(FPKM)\n";
+	    $header_str = "Chromosome\tStart\tEnd\t$original_column_header"."Up_gene\tUp_gene(dist)\tUp_gene(TPM)\tDn_gene\tDn_gene(dist)\tDn_gene(TPM)\tOverlap_gene\tOverlap_gene(TPM)\n";
 		if ($exp_type eq "DIFF") {
 		    $header_str = "Chromosome\tStart\tEnd\t$original_column_header".
 			    "Up_gene\tUp_gene(dist)\tUp_gene(sample1)\tUp_gene(sample2)\tUp_gene(value1)\tUp_gene(value2)\tUp_gene(logFC)\tUp_gene(pvalue)\tUp_gene(qvalue)\t".
@@ -174,9 +174,9 @@ sub findNearestGene {
 	     my $start = $locus->start;
 	     my $end = $locus->end;
 		 my $original_column = $locus->original_column;
-		 my %up_gene = ("id" => ".", "start" => 0, "end" => 0, "dist" => $max_dist, "exp_data" => 0); #id, start, end, distance, fpkm
-		 my %dn_gene = ("id" => ".", "start" => 0, "end" => 0, "dist" => $max_dist, "exp_data" => 0); #id, start, end, distance, fpkm
-		 my %overlap_gene = ("id" => ".", "start" => 0, "end" => 0, "exp_data" => 0); #id, start, end, distance, exp_data (either FPKM or log FC)
+		 my %up_gene = ("id" => ".", "start" => 0, "end" => 0, "dist" => $max_dist, "exp_data" => 0); #id, start, end, distance, TPM
+		 my %dn_gene = ("id" => ".", "start" => 0, "end" => 0, "dist" => $max_dist, "exp_data" => 0); #id, start, end, distance, TPM
+		 my %overlap_gene = ("id" => ".", "start" => 0, "end" => 0, "exp_data" => 0); #id, start, end, distance, exp_data (either TPM or log FC)
 		 # for each gene in the same chromosome
 		 my $total = 0;
 		 my $not_found = 0;
@@ -187,7 +187,7 @@ sub findNearestGene {
 			 if (!$tss_pos) {
 				next;				
 			 }
-			 my $exp_data = $exp{$chr}{$gene_id}{"fpkm"};
+			 my $exp_data = $exp{$chr}{$gene_id}{"TPM"};
 			 my $exp_list = "";
 			 if (exists $exp{$chr}{$gene_id}{"exp_list"}) {
 				$exp_list = "\t".$exp{$chr}{$gene_id}{"exp_list"};
@@ -274,7 +274,7 @@ sub findNearestMaxGeneWithDistance {
 	if (!$is_stitched) {
 	     my $header_str = "Chromosome\tStart\tEnd\t$original_column_header"."Gene\tLength\n";
 	     if ($show_exp) {
-	         $header_str = "Chromosome\tStart\tEnd\t$original_column_header"."Gene\tFPKM\tLength$matrix_header\n";
+	         $header_str = "Chromosome\tStart\tEnd\t$original_column_header"."Gene\tTPM\tLength$matrix_header\n";
 		     if ($exp_type eq "DIFF") {
 		        $header_str = "Chromosome\tStart\tEnd\t$original_column_header"."Gene\tSample1\tSample2\tValue1\tValue2\tlogFC\tpValue\tqValue\tLength\n";
 		     }
@@ -303,7 +303,7 @@ sub findNearestMaxGeneWithDistance {
 			 if (!$tss_pos) {
 				next;				
 			 }
-			 my $exp_data = $exp{$chr}{$gene_id}{"fpkm"};
+			 my $exp_data = $exp{$chr}{$gene_id}{"TPM"};
 			 my $exp_list = "";
 			 if (exists $exp{$chr}{$gene_id}{"exp_list"}) {
 				$exp_list = "\t".$exp{$chr}{$gene_id}{"exp_list"};
@@ -493,12 +493,12 @@ sub readExpression {
   my $id_idx;
   my $tss_idx;
   my $locus_idx;
-  my $fpkm_idx;
+  my $TPM_idx;
   for (my $i=0;$i<=$#headers;$i++) {
        $id_idx = $i if ($headers[$i] eq 'tracking_id');
        $tss_idx = $i if ($headers[$i] eq 'tss_id');
        $locus_idx = $i if ($headers[$i] eq 'locus');
-       $fpkm_idx = $i if ($headers[$i] eq 'FPKM');
+       $TPM_idx = $i if ($headers[$i] eq 'TPM');
   }
   while (<FILE>) {
        chomp;
@@ -506,13 +506,13 @@ sub readExpression {
        my $gene_id = $fields[$id_idx];
        my $tss_id = $fields[$tss_idx];
        my $locus = $fields[$locus_idx];
-       my $fpkm = $fields[$fpkm_idx];
-       next if ($fpkm < $fpkm_cutoff);
+       my $TPM = $fields[$TPM_idx];
+       next if ($TPM < $TPM_cutoff);
        my ($chr, $start, $end) = $locus =~ /(.*):(\d+)\-(\d+)/;
        $chr = "chr".$chr;
        $exp{$chr}{$gene_id}{"start"} = $start;
        $exp{$chr}{$gene_id}{"end"} = $end;
-       $exp{$chr}{$gene_id}{"fpkm"} = $fpkm;
+       $exp{$chr}{$gene_id}{"TPM"} = $TPM;
   }
   close(FILE);
   return %exp;     
@@ -526,11 +526,11 @@ sub readTPM {
   while (<FILE>) {
        chomp;
        my ($chr, $start, $end, $gene_id, $tpm) = split(/\t/);	   
-       next if ($tpm < $fpkm_cutoff);
+       next if ($tpm < $TPM_cutoff);
        $chr = "chr".$chr;
        $exp{$chr}{$gene_id}{"start"} = $start;
        $exp{$chr}{$gene_id}{"end"} = $end;
-       $exp{$chr}{$gene_id}{"fpkm"} = $tpm;
+       $exp{$chr}{$gene_id}{"TPM"} = $tpm;
   }
   close(FILE);
   return %exp;     
@@ -576,7 +576,7 @@ sub readCuffdiff {
 	   my $lfc = $fields[$lfc_idx];
 	   my $pvalue = $fields[$pvalue_idx];
 	   my $qvalue = $fields[$qvalue_idx];
-       next if ($value1 < $fpkm_cutoff && $value2 < $fpkm_cutoff);
+       next if ($value1 < $TPM_cutoff && $value2 < $TPM_cutoff);
 	   next unless ($lfc eq "inf" || $lfc eq "-inf" || abs($lfc) > $lfc_cutoff);
 	   if ($pvalue_cutoff) {
 			if ($pvalue > $pvalue_cutoff) {
@@ -620,14 +620,14 @@ sub readMatrix {
 	if ($g =~ /(.*?)_/) {
 		$gene_id = $1;	
 	}
-	my $fpkm = $fields[$matrix_col];
-	next if ($fpkm < $fpkm_cutoff);
+	my $TPM = $fields[$matrix_col];
+	next if ($TPM < $TPM_cutoff);
 	if (exists $coord{$gene_id}) {
 		my $locus = $coord{$gene_id};
 		my ($chr, $start, $end) = $locus =~ /(.*):(\d+)\-(\d+)/;
 		$exp{$chr}{$gene_id}{"start"} = $start;
 		$exp{$chr}{$gene_id}{"end"} = $end;
-		$exp{$chr}{$gene_id}{"fpkm"} = $fpkm;
+		$exp{$chr}{$gene_id}{"TPM"} = $TPM;
 		$exp{$chr}{$gene_id}{"exp_list"} = join("\t", splice(@fields,1));
 	}
   }

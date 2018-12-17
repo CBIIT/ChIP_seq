@@ -494,7 +494,7 @@ sub runROSE2 {
 
 sub runEDEN {
     my ($config, $sample, $bed_file, $prefix, $do_stitch) = @_;
-    my $fpkm_cutoff = $config->param("EDEN.fpkm_cutoff");
+    my $TPM_cutoff = $config->param("EDEN.TPM_cutoff");
     my $exp_file = $sample->exp_dir;
 	return if ($exp_file eq ".");
     if ($config->param('EDEN.exp_file')) {
@@ -504,14 +504,14 @@ sub runEDEN {
     }
     my $tad_file = $home.$config->param('EDEN.tad_file');
 	my $output_dir = dirname($bed_file);
-	my $eden_out_file = &formatDir($output_dir).$prefix."_fpkm$fpkm_cutoff"."_multi-genes.txt"; 
+	my $eden_out_file = &formatDir($output_dir).$prefix."_TPM$TPM_cutoff"."_multi-genes.txt"; 
 	my $s_option = "";	
 	$s_option = " -s ".$config->param('EDEN.super_loci_distance_cutoff') if ($do_stitch);
 	my $exp_type = "EXP";
 	if ($config->param('EDEN.exp_type')) {
 		$exp_type = $config->param('EDEN.exp_type');
 	}
-    my $cmd = $script_home."EDEN.pl -e $exp_file -o $output_dir -x $prefix -t $exp_type -c -d $tad_file -b $bed_file -f ".$config->param('EDEN.fpkm_cutoff')." $s_option -n ".$config->param('EDEN.nearest_gene_distance_cutoff');
+    my $cmd = $script_home."EDEN.pl -e $exp_file -o $output_dir -x $prefix -t $exp_type -c -d $tad_file -b $bed_file -f ".$config->param('EDEN.TPM_cutoff')." $s_option -n ".$config->param('EDEN.nearest_gene_distance_cutoff');
     if (!-s $eden_out_file || $override) {
         &print_log("Running EDEN: Outputfile => $eden_out_file");
         &runCommand($cmd);
