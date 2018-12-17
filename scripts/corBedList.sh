@@ -32,7 +32,7 @@ fi
 if [ ! -f merged.bed ]
 then
 	sort -k1,1 -k2,2n combined.bed | cut -f 1-3 > combined.sorted.bed
-	bedtools merge -i combined.sorted.bed > merged.bed
+	bedtools merge -i combined.sorted.bed -d 200 > merged.bed
 fi
 if [ ! -f merged_cov.bed ]
 then

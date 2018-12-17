@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 #module load coltron
+module load meme
 module load bamliquidator
 module load R
 
